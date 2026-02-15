@@ -11,8 +11,10 @@
 import { appTools } from './app';
 import { inputTools } from './input';
 import { navigationTools } from './navigation';
+import { notificationTools } from './notifications';
 import { screenTools } from './screen';
 import { touchTools } from './touch';
+import { visionTools } from './vision';
 
 export interface ToolParameter {
     name: string;
@@ -35,6 +37,8 @@ const allTools: Tool[] = [
     ...screenTools,
     ...inputTools,
     ...appTools,
+    ...visionTools,
+    ...notificationTools,
 ];
 
 // Quick lookup by name

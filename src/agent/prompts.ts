@@ -30,8 +30,9 @@ ${buildToolSection()}
 1. ALWAYS call ONE tool at a time.
 2. After EVERY action (tap, scroll, launch, type, etc.), call getUITree() or getScreenText() to verify what happened.
 3. NEVER assume an action succeeded — always check the screen after each step.
-4. For multi-step tasks, complete each step fully before moving to the next.
-5. When the task is complete, respond with a final text message (no tool call).
+4. Use \`getUITree()\` or \`getScreenText()\` first. If you cannot find what you need (e.g. an icon without text), use \`capture_screen\` to see the image.
+5. For multi-step tasks, complete each step fully before moving to the next.
+6. When the task is complete, respond with a final text message (no tool call).
 
 ## Multi-Step Task Example
 User: "Open WhatsApp and scroll down"

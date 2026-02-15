@@ -308,6 +308,80 @@ class ClawAccessibilityModule(private val reactContext: ReactApplicationContext)
         return ClawAccessibilityServiceHolder.service
     }
 
+    // ─── Notifications ───────────────────────────────────────────────
+
+    @ReactMethod
+    fun getRecentNotifications(limit: Double, promise: Promise) {
+        val notifications = ClawNotificationHolder.getRecentNotifications()
+        val array = Arguments.createArray()
+        
+        val max = limit.toInt()
+        var count = 0
+        
+        for (sbn in notifications) {
+            if (count >= max) break
+            
+            val map = Arguments.createMap()
+            map.putString("key", sbn.key)
+            map.putString("packageName", sbn.packageName)
+            map.putDouble("postTime", sbn.postTime.toDouble())
+            
+            val extras = sbn.notification.extras
+            map.putString("title", extras.getString(android.app.Notification.EXTRA_TITLE) ?: "")
+            map.putString("text", extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString() ?: "")
+            map.putString("subText", extras.getCharSequence(android.app.Notification.EXTRA_SUB_TEXT)?.toString() ?: "")
+            
+            array.pushMap(map)
+            count++
+        }
+        
+        promise.resolve(array)
+    }
+
+    @ReactMethod
+    fun clearNotifications(promise: Promise) {
+        ClawNotificationHolder.clearNotifications()
+        // Also try to clear from system if service is connected
+        val service = ClawNotificationHolder.service
+        if (service != null) {
+            try {
+                service.cancelAllNotifications()
+                promise.resolve(true)
+            } catch (e: Exception) {
+                // We might not have permission to cancel all, or some other error
+                promise.resolve(false)
+            }
+        } else {
+            promise.resolve(true) // Local cleared
+        }
+    }
+
+    @ReactMethod
+    fun clickNotification(key: String, promise: Promise) {
+        val service = ClawNotificationHolder.service
+        if (service == null) {
+            promise.resolve(false)
+            return
+        }
+
+        val notifications = service.activeNotifications
+        for (sbn in notifications) {
+            if (sbn.key == key) {
+                val intent = sbn.notification.contentIntent
+                if (intent != null) {
+                    try {
+                        intent.send()
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        promise.resolve(false)
+                    }
+                    return
+                }
+            }
+        }
+        promise.resolve(false)
+    }
+
     companion object {
         const val NAME = "ClawAccessibilityModule"
     }

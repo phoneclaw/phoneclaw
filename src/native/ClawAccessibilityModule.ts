@@ -34,6 +34,18 @@ interface ClawAccessibilityInterface {
   // App management
   launchApp(packageName: string): Promise<boolean>;
 
+  // Notifications
+  getRecentNotifications(limit: number): Promise<Array<{
+    key: string;
+    packageName: string;
+    postTime: number;
+    title: string;
+    text: string;
+    subText: string;
+  }>>;
+  clearNotifications(): Promise<boolean>;
+  clickNotification(key: string): Promise<boolean>;
+
   // Service status
   isServiceRunning(): Promise<boolean>;
 
@@ -87,6 +99,11 @@ const ClawAccessibilityModule: ClawAccessibilityInterface = {
 
   // ─── App Management ─────────────────────────────────────────────
   launchApp: (packageName) => androidOnly(false, () => NativeClawModule.launchApp(packageName)),
+
+  // ─── Notifications ──────────────────────────────────────────────
+  getRecentNotifications: (limit) => androidOnly([], () => NativeClawModule.getRecentNotifications(limit)),
+  clearNotifications: () => androidOnly(false, () => NativeClawModule.clearNotifications()),
+  clickNotification: (key) => androidOnly(false, () => NativeClawModule.clickNotification(key)),
 
   // ─── Service Status ─────────────────────────────────────────────
   isServiceRunning: () => androidOnly(false, () => NativeClawModule.isServiceRunning()),

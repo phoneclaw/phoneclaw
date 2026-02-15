@@ -15,9 +15,23 @@ export interface ToolCall {
     function: ToolCallFunction;
 }
 
+export interface TextPart {
+    type: 'text';
+    text: string;
+}
+
+export interface ImagePart {
+    type: 'image_url';
+    image_url: {
+        url: string;
+    };
+}
+
+export type MessageContent = string | (TextPart | ImagePart)[];
+
 export interface ChatMessage {
     role: MessageRole;
-    content: string | null;
+    content: MessageContent | null;
     tool_calls?: ToolCall[];
     tool_call_id?: string;
     name?: string;

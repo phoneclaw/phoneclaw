@@ -118,15 +118,39 @@ export class AgentCore {
                         result = `Error: ${error?.message || 'Tool execution failed'}`;
                     }
 
-                    this.callbacks.onToolResult(funcName, result);
+                    // Special handling for screenshot to avoid cluttering logs and to pass image to LLM
+                    if (funcName === 'capture_screen' && !result.startsWith('Error') && !result.startsWith('Failed')) {
+                        const base64 = result;
+                        result = 'Screenshot captured successfully.';
+                        this.callbacks.onToolResult(funcName, result);
 
-                    // Add tool result to conversation
-                    this.messages.push({
-                        role: 'tool',
-                        content: result,
-                        tool_call_id: toolCall.id,
-                        name: funcName,
-                    });
+                        // 1. Add tool output (text)
+                        this.messages.push({
+                            role: 'tool',
+                            content: result,
+                            tool_call_id: toolCall.id,
+                            name: funcName,
+                        });
+
+                        // 2. Add image as a new user message
+                        this.messages.push({
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: 'Here is the screen you captured:' },
+                                { type: 'image_url', image_url: { url: `data:image/png;base64,${base64}` } }
+                            ]
+                        });
+                    } else {
+                        // Standard handling
+                        this.callbacks.onToolResult(funcName, result);
+
+                        this.messages.push({
+                            role: 'tool',
+                            content: result,
+                            tool_call_id: toolCall.id,
+                            name: funcName,
+                        });
+                    }
                 }
             }
 
