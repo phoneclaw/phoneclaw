@@ -15,12 +15,16 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          backgroundColor: '#111',
+          borderTopColor: '#222',
+        },
       }}>
       <Tabs.Screen
-        name="index"
+        name="agent"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Agent',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -28,6 +32,20 @@ export default function TabLayout() {
         options={{
           title: 'Tools',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+        }}
+      />
+      {/* Hide old home screen from tabs */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

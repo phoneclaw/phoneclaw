@@ -1,5 +1,6 @@
 package com.phoneclaw.app
 
+import android.content.Intent
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
 
@@ -215,6 +216,30 @@ class ClawAccessibilityModule(private val reactContext: ReactApplicationContext)
         if (service != null) {
             promise.resolve(service.launchApp(packageName))
         } else {
+            promise.resolve(false)
+        }
+    }
+
+    // ─── Background Execution ────────────────────────────────────────
+
+    @ReactMethod
+    fun startAgentService(promise: Promise) {
+        try {
+            val intent = Intent(reactContext, AgentForegroundService::class.java)
+            reactContext.startForegroundService(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun stopAgentService(promise: Promise) {
+        try {
+            val intent = Intent(reactContext, AgentForegroundService::class.java)
+            reactContext.stopService(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
             promise.resolve(false)
         }
     }

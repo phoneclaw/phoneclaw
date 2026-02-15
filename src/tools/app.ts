@@ -13,7 +13,10 @@ export const appTools: Tool[] = [
             { name: 'packageName', type: 'string', description: 'Package name of the app to launch', required: true },
         ],
         execute: async (params) => {
-            return await ClawAccessibilityModule.launchApp(params.packageName);
+            const result = await ClawAccessibilityModule.launchApp(params.packageName);
+            // Wait for the app to load before the agent takes the next action
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return result;
         },
     },
     {

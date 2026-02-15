@@ -36,6 +36,10 @@ interface ClawAccessibilityInterface {
 
   // Service status
   isServiceRunning(): Promise<boolean>;
+
+  // Background execution
+  startAgentService(): Promise<boolean>;
+  stopAgentService(): Promise<boolean>;
 }
 
 // Helper to create a safe Android-only wrapper
@@ -82,6 +86,10 @@ const ClawAccessibilityModule: ClawAccessibilityInterface = {
 
   // ─── Service Status ─────────────────────────────────────────────
   isServiceRunning: () => androidOnly(false, () => NativeClawModule.isServiceRunning()),
+
+  // ─── Background Execution ───────────────────────────────────────
+  startAgentService: () => androidOnly(false, () => NativeClawModule.startAgentService()),
+  stopAgentService: () => androidOnly(false, () => NativeClawModule.stopAgentService()),
 };
 
 export default ClawAccessibilityModule;
