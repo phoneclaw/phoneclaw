@@ -1,0 +1,24 @@
+# OSX
+#
+.DS_Store
+
+# Android/IntelliJ
+#
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Bundle artifacts
+*.jsbundle
+
+# Build logs
+*.log
+build_log*.txt
+full_build_log*.txt
+
+# Generated APKs
+*.apk

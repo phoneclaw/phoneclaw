@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.phoneclaw.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -27,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-accessibility-service",
       [
         "expo-splash-screen",
         {
