@@ -5,6 +5,7 @@
  * function-calling format, executes tool calls, and loops until
  * the LLM returns a final text response or hits the step limit.
  */
+import ClawAccessibilityModule from '../native/ClawAccessibilityModule';
 import { executeTool } from '../tools';
 import { buildSystemPrompt, buildToolSchemas } from './prompts';
 import {
@@ -22,6 +23,9 @@ export class AgentCore {
     constructor(settings: AgentSettings, callbacks: AgentCallbacks) {
         this.settings = settings;
         this.callbacks = callbacks;
+
+        // Listen to heartbeat to keep JS bridge active during background execution
+        ClawAccessibilityModule.addListener('PhoneClawHeartbeat');
     }
 
     /** Abort the current run */
@@ -33,95 +37,111 @@ export class AgentCore {
     async run(userMessage: string): Promise<string> {
         this.aborted = false;
 
-        // Initialize conversation
-        this.messages = [
-            { role: 'system', content: buildSystemPrompt() },
-            { role: 'user', content: userMessage },
-        ];
+        // Start foreground service to keep CPU alive
+        try {
+            await ClawAccessibilityModule.startAgentService();
+        } catch (e) {
+            console.error('Failed to start agent service', e);
+        }
 
-        const toolSchemas = buildToolSchemas();
-        let steps = 0;
+        try {
+            // Initialize conversation
+            this.messages = [
+                { role: 'system', content: buildSystemPrompt() },
+                { role: 'user', content: userMessage },
+            ];
 
-        while (steps < this.settings.maxSteps) {
-            if (this.aborted) {
-                return '⏹ Agent stopped by user.';
-            }
+            const toolSchemas = buildToolSchemas();
+            let steps = 0;
 
-            steps++;
-            this.callbacks.onThinking();
-
-            // Call LLM
-            let response: any;
-            try {
-                response = await this.callLLM(toolSchemas);
-            } catch (error: any) {
-                const msg = error?.message || 'LLM request failed';
-                this.callbacks.onError(msg);
-                return `❌ Error: ${msg}`;
-            }
-
-            const choice = response.choices?.[0];
-            if (!choice) {
-                this.callbacks.onError('No response from LLM');
-                return '❌ No response from LLM';
-            }
-
-            const assistantMessage = choice.message;
-
-            // Add assistant message to history
-            this.messages.push({
-                role: 'assistant',
-                content: assistantMessage.content || null,
-                tool_calls: assistantMessage.tool_calls,
-            });
-
-            // If no tool calls, the assistant is done
-            if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-                const finalText = assistantMessage.content || 'Done.';
-                this.callbacks.onResponse(finalText);
-                return finalText;
-            }
-
-            // Execute each tool call
-            for (const toolCall of assistantMessage.tool_calls) {
+            while (steps < this.settings.maxSteps) {
                 if (this.aborted) {
                     return '⏹ Agent stopped by user.';
                 }
 
-                const funcName = toolCall.function.name;
-                let params: Record<string, any> = {};
-                try {
-                    params = JSON.parse(toolCall.function.arguments || '{}');
-                } catch {
-                    params = {};
-                }
+                steps++;
+                this.callbacks.onThinking();
 
-                this.callbacks.onToolCall(funcName, params);
-
-                let result: string;
+                // Call LLM
+                let response: any;
                 try {
-                    const rawResult = await executeTool(funcName, params);
-                    result = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
+                    response = await this.callLLM(toolSchemas);
                 } catch (error: any) {
-                    result = `Error: ${error?.message || 'Tool execution failed'}`;
+                    const msg = error?.message || 'LLM request failed';
+                    this.callbacks.onError(msg);
+                    return `❌ Error: ${msg}`;
                 }
 
-                this.callbacks.onToolResult(funcName, result);
+                const choice = response.choices?.[0];
+                if (!choice) {
+                    this.callbacks.onError('No response from LLM');
+                    return '❌ No response from LLM';
+                }
 
-                // Add tool result to conversation
+                const assistantMessage = choice.message;
+
+                // Add assistant message to history
                 this.messages.push({
-                    role: 'tool',
-                    content: result,
-                    tool_call_id: toolCall.id,
-                    name: funcName,
+                    role: 'assistant',
+                    content: assistantMessage.content || null,
+                    tool_calls: assistantMessage.tool_calls,
                 });
+
+                // If no tool calls, the assistant is done
+                if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+                    const finalText = assistantMessage.content || 'Done.';
+                    this.callbacks.onResponse(finalText);
+                    return finalText;
+                }
+
+                // Execute each tool call
+                for (const toolCall of assistantMessage.tool_calls) {
+                    if (this.aborted) {
+                        return '⏹ Agent stopped by user.';
+                    }
+
+                    const funcName = toolCall.function.name;
+                    let params: Record<string, any> = {};
+                    try {
+                        params = JSON.parse(toolCall.function.arguments || '{}');
+                    } catch {
+                        params = {};
+                    }
+
+                    this.callbacks.onToolCall(funcName, params);
+
+                    let result: string;
+                    try {
+                        const rawResult = await executeTool(funcName, params);
+                        result = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
+                    } catch (error: any) {
+                        result = `Error: ${error?.message || 'Tool execution failed'}`;
+                    }
+
+                    this.callbacks.onToolResult(funcName, result);
+
+                    // Add tool result to conversation
+                    this.messages.push({
+                        role: 'tool',
+                        content: result,
+                        tool_call_id: toolCall.id,
+                        name: funcName,
+                    });
+                }
+            }
+
+            // Hit max steps
+            const maxMsg = `⚠️ Reached maximum steps (${this.settings.maxSteps}). Stopping.`;
+            this.callbacks.onError(maxMsg);
+            return maxMsg;
+        } finally {
+            // Stop foreground service
+            try {
+                await ClawAccessibilityModule.stopAgentService();
+            } catch (e) {
+                console.error('Failed to stop agent service', e);
             }
         }
-
-        // Hit max steps
-        const maxMsg = `⚠️ Reached maximum steps (${this.settings.maxSteps}). Stopping.`;
-        this.callbacks.onError(maxMsg);
-        return maxMsg;
     }
 
     /** Call the OpenAI-compatible API */

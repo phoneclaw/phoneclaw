@@ -9,6 +9,16 @@ class ClawAccessibilityModule(private val reactContext: ReactApplicationContext)
 
     override fun getName(): String = NAME
 
+    @ReactMethod
+    fun addListener(eventName: String) {
+        // Required for React Native built-in Event Emitter Calls.
+    }
+
+    @ReactMethod
+    fun removeListeners(count: Int) {
+        // Required for React Native built-in Event Emitter Calls.
+    }
+
     // ─── Touch Actions ───────────────────────────────────────────────
 
     @ReactMethod
@@ -223,10 +233,59 @@ class ClawAccessibilityModule(private val reactContext: ReactApplicationContext)
     // ─── Background Execution ────────────────────────────────────────
 
     @ReactMethod
+    fun isServiceRunning(promise: Promise) {
+        promise.resolve(ClawAccessibilityServiceHolder.service != null)
+    }
+
+    // ─── Heartbeat ───────────────────────────────────────────────────
+
+    private val heartbeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            // 1. Send Event to React Native (Standard Bridge)
+            sendEvent("PhoneClawHeartbeat", null)
+
+            // 2. Start Headless JS Task (keeps bridge alive in background)
+            try {
+                val serviceIntent = Intent(reactContext, AgentHeadlessTaskService::class.java)
+                val bundle = android.os.Bundle()
+                bundle.putString("event", "heartbeat")
+                serviceIntent.putExtras(bundle)
+                reactContext.startService(serviceIntent)
+            } catch (e: Exception) {
+                // Ignore if service fails to start
+            }
+
+            // Schedule next tick
+            heartbeatHandler.postDelayed(this, 1000)
+        }
+    }
+
+    private fun startHeartbeat() {
+        stopHeartbeat() // ensure no duplicates
+        heartbeatHandler.post(heartbeatRunnable)
+    }
+
+    private fun stopHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    }
+
+    private fun sendEvent(eventName: String, params: WritableMap?) {
+        try {
+            reactContext
+                .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit(eventName, params)
+        } catch (e: Exception) {
+            // Context might be missing or React instance destroyed
+        }
+    }
+
+    @ReactMethod
     fun startAgentService(promise: Promise) {
         try {
             val intent = Intent(reactContext, AgentForegroundService::class.java)
             reactContext.startForegroundService(intent)
+            startHeartbeat()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.resolve(false)
@@ -238,17 +297,11 @@ class ClawAccessibilityModule(private val reactContext: ReactApplicationContext)
         try {
             val intent = Intent(reactContext, AgentForegroundService::class.java)
             reactContext.stopService(intent)
+            stopHeartbeat()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.resolve(false)
         }
-    }
-
-    // ─── Service Status ──────────────────────────────────────────────
-
-    @ReactMethod
-    fun isServiceRunning(promise: Promise) {
-        promise.resolve(ClawAccessibilityServiceHolder.service != null)
     }
 
     private fun getAccessibilityService(): ClawAccessibilityService? {

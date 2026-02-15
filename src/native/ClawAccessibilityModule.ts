@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
 
 const { ClawAccessibilityModule: NativeClawModule } = NativeModules;
 
@@ -40,6 +40,10 @@ interface ClawAccessibilityInterface {
   // Background execution
   startAgentService(): Promise<boolean>;
   stopAgentService(): Promise<boolean>;
+
+  // Events
+  addListener(eventName: string): void;
+  removeListeners(count: number): void;
 }
 
 // Helper to create a safe Android-only wrapper
@@ -90,7 +94,15 @@ const ClawAccessibilityModule: ClawAccessibilityInterface = {
   // ─── Background Execution ───────────────────────────────────────
   startAgentService: () => androidOnly(false, () => NativeClawModule.startAgentService()),
   stopAgentService: () => androidOnly(false, () => NativeClawModule.stopAgentService()),
+
+  addListener: (eventName) => {
+    if (Platform.OS === 'android') {
+      DeviceEventEmitter.addListener(eventName, () => { });
+    }
+  },
+  removeListeners: () => { }, // No-op, just for interface compliance if needed
 };
 
 export default ClawAccessibilityModule;
+
 
