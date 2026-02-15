@@ -23,19 +23,20 @@ PhoneClaw uses Android's Accessibility Service to give an AI agent full control 
 | `typeText(text)` | 🔜 | Type into focused input fields |
 | `pressBack` / `pressHome` | 🔜 | System navigation actions |
 | `getUITree` | 🔜 | Full accessibility tree as structured JSON |
-| `takeScreenshot` | 🔜 | Capture screen for vision AI |
+| `takeScreenshot` | ✅ | Capture screen for vision AI |
 
 ### Agent Integration (Phase 2)
-- 🔜 LLM-powered reasoning loop
-- 🔜 Natural language command interface
-- 🔜 Automatic tool selection and execution
-- 🔜 Chat UI with action visualization
+- ✅ LLM-powered reasoning loop
+- ✅ Natural language command interface
+- ✅ Automatic tool selection and execution
+- ✅ Chat UI with action visualization
 
 ### Advanced Features (Phase 3)
-- 🔜 App launcher by name
-- 🔜 Notification reader
-- 🔜 Multi-step task planning
-- 🔜 Task memory and replay
+- ✅ App launcher by name
+- ✅ Notification reader
+- ✅ Vision (Screenshot analysis)
+- 🔜 Multi-step task planning (Partially implemented via prompts)
+- 🔜 Background execution (Service implemented)
 
 ---
 
@@ -58,7 +59,9 @@ phoneclaw/
 │   │   ├── index.ts              # Tool registry
 │   │   ├── touch.ts              # tap, longPress, swipe
 │   │   ├── navigation.ts         # back, home, recents, scroll
-│   │   ├── screen.ts             # getScreenText, getUITree, screenshot
+│   │   ├── screen.ts             # getScreenText, getUITree
+│   │   ├── vision.ts             # capture_screen (Phase 3)
+│   │   ├── notifications.ts      # notification tools (Phase 3)
 │   │   ├── input.ts              # typeText, clickByText, clickByViewId
 │   │   └── app.ts                # launchApp, getCurrentApp
 │   │
@@ -68,6 +71,7 @@ phoneclaw/
 │
 ├── android/app/src/main/java/com/phoneclaw/app/
 │   ├── ClawAccessibilityService.kt   # Core service — all native actions
+│   ├── ClawNotificationService.kt    # Notification listener (Phase 3)
 │   ├── ClawAccessibilityModule.kt    # React Native bridge module
 │   ├── ClawAccessibilityPackage.kt   # RN package registration
 │   ├── ClawAccessibilityServiceHolder.kt  # Singleton reference
