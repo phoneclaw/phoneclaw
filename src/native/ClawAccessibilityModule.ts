@@ -3,66 +3,86 @@ import { NativeModules, Platform } from 'react-native';
 const { ClawAccessibilityModule: NativeClawModule } = NativeModules;
 
 interface ClawAccessibilityInterface {
+  // Touch actions
+  tap(x: number, y: number): Promise<boolean>;
+  longPress(x: number, y: number): Promise<boolean>;
+  swipe(x1: number, y1: number, x2: number, y2: number, duration: number): Promise<boolean>;
+  doubleTap(x: number, y: number): Promise<boolean>;
+
+  // Text input
+  typeText(text: string): Promise<boolean>;
+  clearText(): Promise<boolean>;
+
+  // Element interaction
   clickByText(text: string): Promise<boolean>;
-  scrollDown(): Promise<boolean>;
+  clickByViewId(viewId: string): Promise<boolean>;
+
+  // Navigation
+  pressBack(): Promise<boolean>;
+  pressHome(): Promise<boolean>;
+  openRecents(): Promise<boolean>;
+  openNotifications(): Promise<boolean>;
   scrollUp(): Promise<boolean>;
+  scrollDown(): Promise<boolean>;
+
+  // Screen reading
   getScreenText(): Promise<string>;
+  getUITree(): Promise<string>;
+  takeScreenshot(): Promise<string>;
+  getCurrentApp(): Promise<string>;
+
+  // App management
+  launchApp(packageName: string): Promise<boolean>;
+
+  // Service status
   isServiceRunning(): Promise<boolean>;
 }
 
+// Helper to create a safe Android-only wrapper
+function androidOnly<T>(fallback: T, fn: () => Promise<T>): Promise<T> {
+  if (Platform.OS !== 'android') return Promise.resolve(fallback);
+  return fn().catch((e) => {
+    console.error('[ClawAccessibility]', e);
+    return fallback;
+  });
+}
+
 const ClawAccessibilityModule: ClawAccessibilityInterface = {
-  async clickByText(text: string): Promise<boolean> {
-    if (Platform.OS !== 'android') {
-      console.warn('Accessibility only works on Android');
-      return false;
-    }
-    try {
-      return await NativeClawModule.clickByText(text);
-    } catch (e) {
-      console.error('Error clicking by text:', e);
-      return false;
-    }
-  },
+  // ─── Touch Actions ──────────────────────────────────────────────
+  tap: (x, y) => androidOnly(false, () => NativeClawModule.tap(x, y)),
+  longPress: (x, y) => androidOnly(false, () => NativeClawModule.longPress(x, y)),
+  swipe: (x1, y1, x2, y2, duration) =>
+    androidOnly(false, () => NativeClawModule.swipe(x1, y1, x2, y2, duration)),
+  doubleTap: (x, y) => androidOnly(false, () => NativeClawModule.doubleTap(x, y)),
 
-  async scrollDown(): Promise<boolean> {
-    if (Platform.OS !== 'android') return false;
-    try {
-      return await NativeClawModule.scrollDown();
-    } catch (e) {
-      console.error('Error scrolling down:', e);
-      return false;
-    }
-  },
+  // ─── Text Input ─────────────────────────────────────────────────
+  typeText: (text) => androidOnly(false, () => NativeClawModule.typeText(text)),
+  clearText: () => androidOnly(false, () => NativeClawModule.clearText()),
 
-  async scrollUp(): Promise<boolean> {
-    if (Platform.OS !== 'android') return false;
-    try {
-      return await NativeClawModule.scrollUp();
-    } catch (e) {
-      console.error('Error scrolling up:', e);
-      return false;
-    }
-  },
+  // ─── Element Interaction ────────────────────────────────────────
+  clickByText: (text) => androidOnly(false, () => NativeClawModule.clickByText(text)),
+  clickByViewId: (viewId) => androidOnly(false, () => NativeClawModule.clickByViewId(viewId)),
 
-  async getScreenText(): Promise<string> {
-    if (Platform.OS !== 'android') return '';
-    try {
-      return await NativeClawModule.getScreenText();
-    } catch (e) {
-      console.error('Error getting screen text:', e);
-      return '';
-    }
-  },
+  // ─── Navigation ─────────────────────────────────────────────────
+  pressBack: () => androidOnly(false, () => NativeClawModule.pressBack()),
+  pressHome: () => androidOnly(false, () => NativeClawModule.pressHome()),
+  openRecents: () => androidOnly(false, () => NativeClawModule.openRecents()),
+  openNotifications: () => androidOnly(false, () => NativeClawModule.openNotifications()),
+  scrollUp: () => androidOnly(false, () => NativeClawModule.scrollUp()),
+  scrollDown: () => androidOnly(false, () => NativeClawModule.scrollDown()),
 
-  async isServiceRunning(): Promise<boolean> {
-    if (Platform.OS !== 'android') return false;
-    try {
-      return await NativeClawModule.isServiceRunning();
-    } catch (e) {
-      console.error('Error checking service:', e);
-      return false;
-    }
-  }
+  // ─── Screen Reading ─────────────────────────────────────────────
+  getScreenText: () => androidOnly('', () => NativeClawModule.getScreenText()),
+  getUITree: () => androidOnly('{}', () => NativeClawModule.getUITree()),
+  takeScreenshot: () => androidOnly('', () => NativeClawModule.takeScreenshot()),
+  getCurrentApp: () => androidOnly('', () => NativeClawModule.getCurrentApp()),
+
+  // ─── App Management ─────────────────────────────────────────────
+  launchApp: (packageName) => androidOnly(false, () => NativeClawModule.launchApp(packageName)),
+
+  // ─── Service Status ─────────────────────────────────────────────
+  isServiceRunning: () => androidOnly(false, () => NativeClawModule.isServiceRunning()),
 };
 
 export default ClawAccessibilityModule;
+
