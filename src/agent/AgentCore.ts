@@ -47,7 +47,7 @@ export class AgentCore {
         try {
             // Initialize conversation
             this.messages = [
-                { role: 'system', content: buildSystemPrompt() },
+                { role: 'system', content: buildSystemPrompt(this.settings) },
                 { role: 'user', content: userMessage },
             ];
 
@@ -132,14 +132,21 @@ export class AgentCore {
                             name: funcName,
                         });
 
-                        // 2. Add image as a new user message
-                        this.messages.push({
-                            role: 'user',
-                            content: [
-                                { type: 'text', text: 'Here is the screen you captured:' },
-                                { type: 'image_url', image_url: { url: `data:image/png;base64,${base64}` } }
-                            ]
-                        });
+                        // 2. Add image as a new user message (if capability is enabled)
+                        if (this.settings.imageCapability !== false) {
+                            this.messages.push({
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: 'Here is the screen you captured:' },
+                                    { type: 'image_url', image_url: { url: `data:image/png;base64,${base64}` } }
+                                ]
+                            });
+                        } else {
+                            this.messages.push({
+                                role: 'user',
+                                content: 'Screenshot captured, but vision is disabled. I will use the UI tree to understand the screen.'
+                            });
+                        }
                     } else {
                         // Standard handling
                         this.callbacks.onToolResult(funcName, result);

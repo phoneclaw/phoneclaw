@@ -27,4 +27,12 @@ export const appTools: Tool[] = [
             return await ClawAccessibilityModule.getCurrentApp();
         },
     },
+    {
+        name: 'returnToPhoneClaw',
+        description: 'Return to the PhoneClaw application',
+        parameters: [],
+        execute: async () => {
+            return await ClawAccessibilityModule.launchApp('com.phoneclaw.app');
+        },
+    },
 ];

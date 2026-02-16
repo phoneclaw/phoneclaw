@@ -54,6 +54,7 @@ export interface AgentSettings {
     model: string;
     maxSteps: number;
     safetyConfirmation: boolean;
+    imageCapability: boolean;
 }
 
 export const DEFAULT_SETTINGS: AgentSettings = {
@@ -62,6 +63,7 @@ export const DEFAULT_SETTINGS: AgentSettings = {
     model: 'stepfun/step-3.5-flash:free',
     maxSteps: 20,
     safetyConfirmation: true,
+    imageCapability: true,
 };
 
 export interface AgentCallbacks {
