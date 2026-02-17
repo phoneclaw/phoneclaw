@@ -157,6 +157,23 @@ export default function SettingsScreen() {
                                 </Text>
                             </Pressable>
                         </FieldRow>
+
+                        {settings.imageCapability && (
+                            <Animated.View entering={FadeInDown.duration(300)}>
+                                <View style={styles.divider} />
+                                <FieldRow label="Image Model">
+                                    <TextInput
+                                        style={styles.input}
+                                        value={settings.imageModel}
+                                        onChangeText={v => update('imageModel', v)}
+                                        placeholder="nvidia/nemotron-nano-12b-v2-vl:free"
+                                        placeholderTextColor={palette.textMuted}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                </FieldRow>
+                            </Animated.View>
+                        )}
                     </View>
                 </Animated.View>
 

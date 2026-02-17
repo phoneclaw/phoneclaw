@@ -55,6 +55,7 @@ export interface AgentSettings {
     maxSteps: number;
     safetyConfirmation: boolean;
     imageCapability: boolean;
+    imageModel: string;
 }
 
 export const DEFAULT_SETTINGS: AgentSettings = {
@@ -64,6 +65,7 @@ export const DEFAULT_SETTINGS: AgentSettings = {
     maxSteps: 20,
     safetyConfirmation: true,
     imageCapability: true,
+    imageModel: '',
 };
 
 export interface AgentCallbacks {

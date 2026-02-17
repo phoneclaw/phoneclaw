@@ -177,7 +177,7 @@ export class AgentCore {
 
     /** Call the OpenAI-compatible API with streaming */
     private async callLLM(tools: any[]): Promise<any> {
-        const { apiKey, baseUrl, model } = this.settings;
+        const { apiKey, baseUrl, model, imageModel } = this.settings;
 
         if (!apiKey) {
             throw new Error('No API key configured. Go to Settings to add one.');
@@ -185,9 +185,55 @@ export class AgentCore {
 
         const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
+        // Check if any message contains an image
+        const hasImage = this.messages.some(msg => {
+            if (Array.isArray(msg.content)) {
+                return msg.content.some(part => part.type === 'image_url');
+            }
+            return false;
+        });
+
+        // Use imageModel if images are present, otherwise default model
+        const selectedModel = hasImage && imageModel ? imageModel : model;
+
+        // Optimization: Keep only the *last* image to save context
+        // Find the index of the last message with an image
+        let lastImageIndex = -1;
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            const msg = this.messages[i];
+            if (Array.isArray(msg.content) && msg.content.some(c => c.type === 'image_url')) {
+                lastImageIndex = i;
+                break;
+            }
+        }
+
+        // Create a new messages array where older images are replaced with placeholders
+        const messagesToSend = this.messages.map((msg, index) => {
+            // Keep the last image message as-is
+            if (index === lastImageIndex) return msg;
+
+            // For older messages, if they have images, replace them
+            if (Array.isArray(msg.content)) {
+                const containsImage = msg.content.some(c => c.type === 'image_url');
+                if (containsImage) {
+                    // Replace image parts with a text placeholder
+                    const newContent = msg.content.map(part => {
+                        if (part.type === 'image_url') {
+                            // Cast to any to satisfy TS return type if needed, 
+                            // but TextPart is valid in MessageContent array
+                            return { type: 'text', text: '[Image from previous step removed to save context]' };
+                        }
+                        return part;
+                    });
+                    return { ...msg, content: newContent };
+                }
+            }
+            return msg;
+        });
+
         const body: any = {
-            model,
-            messages: this.messages,
+            model: selectedModel,
+            messages: messagesToSend,
             tools,
             tool_choice: 'auto',
             stream: true,

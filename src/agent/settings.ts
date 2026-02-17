@@ -17,6 +17,8 @@ function getEnvDefaults(): Partial<AgentSettings> {
     if (url) env.baseUrl = url;
     const model = process.env.EXPO_PUBLIC_LLM_MODEL;
     if (model) env.model = model;
+    const imageModel = process.env.EXPO_PUBLIC_IMAGE_MODEL;
+    if (imageModel) env.imageModel = imageModel;
     return env;
 }
 
