@@ -126,8 +126,9 @@ export class TelegramService {
                 : (currentText || '...');
 
             try {
-                // We use basic text (no parse_mode) for safety with raw LLM output usually
-                await this.editMessageRequest(chatId, messageId, displayText);
+                // Use HTML parse mode for rich formatting
+                const htmlText = this.mdToHtml(displayText);
+                await this.editMessageRequest(chatId, messageId, htmlText);
             } catch (e) {
                 // If message not modified, ignore
             }
@@ -187,19 +188,52 @@ export class TelegramService {
     }
 
     private async sendMessageResponse(chatId: number, text: string): Promise<any> {
-        return this.sendRequest('sendMessage', { chat_id: chatId, text });
+        return this.sendRequest('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML' });
     }
 
     private async sendMessage(chatId: number, text: string) {
-        await this.sendRequest('sendMessage', { chat_id: chatId, text });
+        await this.sendRequest('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML' });
     }
 
     private async editMessageRequest(chatId: number, messageId: number, text: string) {
         await this.sendRequest('editMessageText', {
             chat_id: chatId,
             message_id: messageId,
-            text
+            text,
+            parse_mode: 'HTML'
         });
+    }
+
+    private escapeHTML(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    private mdToHtml(md: string): string {
+        if (!md) return '';
+
+        let html = md;
+
+        // 1. Escape HTML entities first
+        html = this.escapeHTML(html);
+
+        // 2. Multi-line code blocks: ```text```
+        html = html.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+
+        // 3. Inline code: `text`
+        html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+
+        // 4. Bold: **text** or __text__
+        html = html.replace(/(\*\*|__)(.*?)\1/g, '<b>$2</b>');
+
+        // 5. Italic: *text* or _text_
+        // Use a lookbehind/lookahead style logic or just simple non-greedy matching
+        // We avoid matching inside already processed <b> tags by processing them in order.
+        html = html.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>');
+
+        return html;
     }
 
     private async sendRequest(method: string, body: any): Promise<any> {
