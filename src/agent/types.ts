@@ -72,4 +72,5 @@ export interface AgentCallbacks {
     onToolResult: (name: string, result: string) => void;
     onResponse: (text: string) => void;
     onError: (error: string) => void;
+    onStream?: (chunk: string) => void;
 }

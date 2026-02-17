@@ -6,6 +6,8 @@ PhoneClaw uses Android's Accessibility Service to give an AI agent full control 
 
 > ⚠️ **Early Development** — This project is under active development. Contributions welcome!
 
+> [**Watch the Demo on Twitter**](https://twitter.com/8Dazo/status/2023592262782120054)
+
 ---
 
 ## ✨ Features

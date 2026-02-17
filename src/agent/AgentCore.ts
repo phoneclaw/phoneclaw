@@ -175,7 +175,7 @@ export class AgentCore {
         }
     }
 
-    /** Call the OpenAI-compatible API */
+    /** Call the OpenAI-compatible API with streaming */
     private async callLLM(tools: any[]): Promise<any> {
         const { apiKey, baseUrl, model } = this.settings;
 
@@ -190,25 +190,123 @@ export class AgentCore {
             messages: this.messages,
             tools,
             tool_choice: 'auto',
+            stream: true,
         };
 
-        const res = await fetch(url, {
+        // Use custom SSE fetcher for RN
+        return this.fetchSSE(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${apiKey}`,
-                // OpenRouter-specific headers (harmless for other providers)
                 'HTTP-Referer': 'https://github.com/phoneclaw/phoneclaw',
                 'X-Title': 'PhoneClaw Agent',
             },
             body: JSON.stringify(body),
         });
+    }
 
-        if (!res.ok) {
-            const errorText = await res.text().catch(() => '');
-            throw new Error(`API error ${res.status}: ${errorText.slice(0, 200)}`);
-        }
+    /** 
+     * Custom Fetch for SSE in React Native using XMLHttpRequest
+     * Standard 'fetch' in RN doesn't support ReadableStream well yet.
+     */
+    private fetchSSE(url: string, options: any): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open(options.method, url);
 
-        return res.json();
+            for (const [key, value] of Object.entries(options.headers || {})) {
+                xhr.setRequestHeader(key, value as string);
+            }
+
+            // Accumulate response
+            let content = '';
+            const toolCallsMap: Record<number, any> = {};
+            let lastSeenIndex = 0;
+
+            const parseChunk = (text: string) => {
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    const dataStr = trimmed.slice(6);
+                    if (dataStr === '[DONE]') continue;
+
+                    try {
+                        const chunk = JSON.parse(dataStr);
+                        const delta = chunk.choices?.[0]?.delta;
+                        if (!delta) continue;
+
+                        // 1. Content
+                        if (delta.content) {
+                            content += delta.content;
+                            if (this.callbacks.onStream) {
+                                this.callbacks.onStream(delta.content);
+                            }
+                        }
+
+                        // 2. Tool Calls
+                        if (delta.tool_calls) {
+                            for (const tc of delta.tool_calls) {
+                                const idx = tc.index;
+                                if (!toolCallsMap[idx]) {
+                                    toolCallsMap[idx] = {
+                                        index: idx,
+                                        id: tc.id || '',
+                                        type: 'function',
+                                        function: { name: '', arguments: '' }
+                                    };
+                                }
+                                const current = toolCallsMap[idx];
+                                if (tc.id) current.id = tc.id;
+                                if (tc.function?.name) current.function.name += tc.function.name;
+                                if (tc.function?.arguments) current.function.arguments += tc.function.arguments;
+                            }
+                        }
+                    } catch (e) {
+                        // ignore json parse error
+                    }
+                }
+            };
+
+            xhr.onprogress = () => {
+                if (this.aborted) {
+                    xhr.abort();
+                    reject(new Error('Aborted by user'));
+                    return;
+                }
+
+                // Read new data only
+                const newData = xhr.responseText.slice(lastSeenIndex);
+                lastSeenIndex = xhr.responseText.length;
+                parseChunk(newData);
+            };
+
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    // Assemble final object
+                    const tool_calls = Object.values(toolCallsMap).sort((a, b) => a.index - b.index);
+                    resolve({
+                        choices: [
+                            {
+                                message: {
+                                    role: 'assistant',
+                                    content: content || null,
+                                    tool_calls: tool_calls.length > 0 ? tool_calls : undefined
+                                }
+                            }
+                        ]
+                    });
+                } else {
+                    reject(new Error(`API error ${xhr.status}: ${xhr.responseText.slice(0, 200)}`));
+                }
+            };
+
+            xhr.onerror = () => {
+                reject(new Error('Network request failed'));
+            };
+
+            xhr.send(options.body);
+        });
     }
 }
